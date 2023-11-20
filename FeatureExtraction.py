@@ -40,6 +40,8 @@ def calculate_instantaneous_firing_rate(spike_times, recording, sampling_rate, s
     
     return ifr_ls, time_bins
 
+# TODO: CV skew kurtosis etc. features in ISI histogram probably can be applied to IFR too
+
 ### WAVEFORM FEATURES ###
 def get_mean_amplitude(spike_times, recording, sampling_rate, window):
     """ amplitude defined as peak-trough change """
