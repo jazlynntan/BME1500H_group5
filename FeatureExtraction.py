@@ -40,7 +40,14 @@ def calculate_instantaneous_firing_rate(spike_times, recording, sampling_rate, s
     
     return ifr_ls, time_bins
 
-# TODO: CV skew kurtosis etc. features in ISI histogram probably can be applied to IFR too
+def get_ifr_metrics(ifr):
+    ifr_skew = stats.skew(ifr)
+    ifr_kurtosis = stats.kurtosis(ifr)
+    ifr_mean = np.mean(ifr)
+    ifr_var = np.var(ifr)
+    fano_factor = ifr_var / ifr_mean
+    
+    return fano_factor, ifr_mean, ifr_skew, ifr_kurtosis
 
 ### WAVEFORM FEATURES ###
 def get_mean_amplitude(spike_times, recording, sampling_rate, window):
@@ -49,10 +56,10 @@ def get_mean_amplitude(spike_times, recording, sampling_rate, window):
     for spike in range(len(spike_times)):
         if spike_times[spike]*sampling_rate - window < 0:
             spike_segment = recording[0:int(spike_times[spike]*sampling_rate+window)]
-            print('start spike')
+            # print('start spike')
         elif spike_times[spike]*sampling_rate + window > len(recording):
             spike_segment = recording[int(spike_times[spike]*sampling_rate-window):int(len(recording))]
-            print('end spike')
+            # print('end spike')
         else:  
             spike_segment = recording[int(spike_times[spike]*sampling_rate-window):int(spike_times[spike]*sampling_rate+window)]
         
@@ -71,10 +78,10 @@ def get_mean_amplitude2(spike_times, recording, sampling_rate, window):
     for spike in range(len(spike_times)):
         if spike_times[spike]*sampling_rate - window < 0:
             spike_segment = recording[0:int(spike_times[spike]*sampling_rate+window)]
-            print('start spike')
+            # print('start spike')
         elif spike_times[spike]*sampling_rate + window > len(recording):
             spike_segment = recording[int(spike_times[spike]*sampling_rate-window):int(len(recording))]
-            print('end spike')
+            # print('end spike')
         else:  
             spike_segment = recording[int(spike_times[spike]*sampling_rate-window):int(spike_times[spike]*sampling_rate+window)]
         
@@ -147,7 +154,7 @@ def burst_detection_neuroexplorer(spike_times,
             best_surprise = surprise
             best_numspikes = num_spikes
             burst_start_spike = j
-            burst_end_spike = j + num_spikes
+            burst_end_spike = j + num_spikes - 1
             # add spike
             # if j + num_spikes -1 < len(ISI) == True:
             #     while ISI[j+num_spikes-1] < ISI_to_end_burst:
@@ -160,7 +167,7 @@ def burst_detection_neuroexplorer(spike_times,
                         best_surprise = surprise
                         best_numspikes = num_spikes
                         # burst_start_spike = j # doesnt change until backward
-                        burst_end_spike = j + best_numspikes
+                        burst_end_spike = j + best_numspikes - 1
                 
             # backward bursts
             backward_surprise_list = []
@@ -171,7 +178,7 @@ def burst_detection_neuroexplorer(spike_times,
                     best_surprise = backward_surprise
                     best_numspikes = i
                     # burst_end_spike = j + best_numspikes # doesnt change in backward
-                    burst_start_spike = burst_end_spike - i
+                    burst_start_spike = burst_end_spike - i + 1
                 
         if best_numspikes >= min_numspikes and best_surprise > min_surprise:
             # print('burst detected!')
@@ -185,6 +192,21 @@ def burst_detection_neuroexplorer(spike_times,
         
     return burst_dict
 
+def get_burst_metrics(burst_dict, spike_times):
+    num_bursts = len(burst_dict['burst_numspikes'])
+    mean_surprise = np.mean(burst_dict['burst_surprise'])
+    burst_index = np.sum(burst_dict['burst_numspikes']) / len(spike_times) # number of spikes in burst out of all spikes
+    
+    burst_lengths = [spike_times[burst_dict['burst_end_spike'][i]] - spike_times[burst_dict['burst_start_spike'][i]] for i in range(len(burst_dict['burst_start_spike']))]
+    mean_burst_duration = np.mean(burst_lengths)
+    var_burst_duration = np.var(burst_lengths)
+    
+    interburst_lengths = [spike_times[burst_dict['burst_start_spike'][i]] - spike_times[burst_dict['burst_end_spike'][i-1]] for i in range(1,len(burst_dict['burst_start_spike']))]
+    mean_interburst_duration = np.mean(interburst_lengths)
+    var_interburst_duration = np.var(interburst_lengths)
+    
+    return num_bursts, mean_surprise, burst_index, mean_burst_duration, var_burst_duration, mean_interburst_duration, var_interburst_duration
+    
 ### SYNCHRONY ###
 def get_synchrony_features(spike_times, 
                            time_bin_size = 0.01, 
@@ -219,20 +241,29 @@ def get_synchrony_features(spike_times,
     threshold = np.percentile(pgram, (1 - significance_level) * 100)
     
     peaks, peak_props = signal.find_peaks(pgram, height=threshold)
-    freq_peaks = w[peaks] / (2*np.pi)
-    max_peak_freq = w[peaks[peak_props['peak_heights'].argmax()]] / (2* np.pi)
+    
+    if peaks.size > 0:
+        freq_peaks = w[peaks] / (2*np.pi)
+        max_peak_freq = w[peaks[peak_props['peak_heights'].argmax()]] / (2* np.pi)
+        freq_magnitude = peak_props['peak_heights']
 
-    frequency_bands = {
-        'delta': (0.1, 4),
-        'theta': (4, 8),
-        'alpha': (8, 13),
-        'beta': (13, 30),
-        'gamma': (30, 50),
-    }
+        frequency_bands = {
+            'delta': (0.1, 4),
+            'theta': (4, 8),
+            'alpha': (8, 13),
+            'beta': (13, 30),
+            'gamma': (30, 50),
+        }
 
-    peak_bands = []
-    for band, (lower, upper) in frequency_bands.items():
-        peak_bands.extend([band for p in freq_peaks if lower <= p < upper])
+        peak_bands = []
+        for band, (lower, upper) in frequency_bands.items():
+            peak_bands.extend([band for p in freq_peaks if lower <= p < upper])
+    
+    else:
+        freq_peaks = []
+        max_peak_freq = np.nan
+        peak_bands = []
+        freq_magnitude = []
     
     if to_plot == True:
         fig,axes = plt.subplots(3,1)
@@ -254,4 +285,4 @@ def get_synchrony_features(spike_times,
         fig.legend()
         fig.tight_layout()
     
-    return max_peak_freq, freq_peaks, peak_bands
+    return max_peak_freq, freq_peaks, peak_bands, freq_magnitude
