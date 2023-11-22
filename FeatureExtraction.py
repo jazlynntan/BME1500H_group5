@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import neo
 import os
 from scipy import stats, signal
+from WaveformMetrics import *
 
 ### Import spike train ###
 def load_spiketrain(filepath, to_plot = False):
@@ -93,6 +94,30 @@ def get_mean_amplitude2(spike_times, recording, sampling_rate, window):
     mean_amplitude = np.mean(amplitude_ls)
     
     return mean_amplitude, amplitude_ls
+
+def get_ecephys_waveform_metrics(spike_times, recording, window, sampling_rate):
+    
+    waveforms = np.zeros((len(spike_times), window*2))
+    for i, spike in enumerate(spike_times):
+        if spike*sampling_rate - window >= 0 and spike*sampling_rate + window <= len(recording):
+            waveforms[i,:] = recording[int(spike*sampling_rate)-window:int(spike*sampling_rate)+window]
+    
+    waveforms = waveforms[~np.all(waveforms == 0, axis=1)]
+    mean_waveform = np.mean(waveforms,axis=0)
+    
+    timestamps = np.linspace(0, window/sampling_rate, window*2)
+    
+    waveform_duration = calculate_waveform_duration(mean_waveform,timestamps)
+    waveform_halfwidth = calculate_waveform_halfwidth(mean_waveform,timestamps)
+    waveform_PT_ratio = calculate_waveform_PT_ratio(mean_waveform)
+    waveform_TP_time = calculate_waveform_TP_time(mean_waveform, timestamps)
+    
+    # slopes not possible for 12.5kHz sampling rate as insufficient points for linear regression
+    # waveform_repolarization_slope = calculate_waveform_repolarization_slope(mean_waveform,timestamps)
+    # waveform_recovery_slope = calculate_waveform_recovery_slope(mean_waveform, timestamps)
+    
+    return waveform_duration, waveform_halfwidth, waveform_PT_ratio, waveform_TP_time
+
 
 ### INTERSPIKE INTERVAL ###
 def get_ISI_metrics(spike_times):
