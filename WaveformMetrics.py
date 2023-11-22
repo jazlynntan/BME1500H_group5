@@ -223,6 +223,32 @@ def calculate_waveform_PT_ratio(waveform):
 
     return PT_ratio
 
+def is_positive_spiking(waveform):
+    """ 
+    JT created
+    If trough occurs before (conventional) or after (positive) peak
+
+    Inputs:
+    ------
+    waveform : numpy.ndarray (N samples)
+
+    Outputs:
+    --------
+    is_positive : 0 if conventional, 1 if positive spiking
+
+    """
+
+    trough_idx = np.argmin(waveform)
+
+    peak_idx = np.argmax(waveform)
+
+    if trough_idx < peak_idx:
+        is_positive = 0
+    if trough_idx > peak_idx:
+        is_positive = 1
+
+    return is_positive
+
 def calculate_waveform_TP_time(waveform, timestamps):
 
     """ 
@@ -244,7 +270,7 @@ def calculate_waveform_TP_time(waveform, timestamps):
 
     peak_idx = np.argmax(waveform)
 
-    TP_time = timestamps[peak_idx] - timestamps[trough_idx]
+    TP_time = np.abs(timestamps[peak_idx] - timestamps[trough_idx])
 
     return TP_time
 

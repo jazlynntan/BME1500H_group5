@@ -111,12 +111,13 @@ def get_ecephys_waveform_metrics(spike_times, recording, window, sampling_rate):
     waveform_halfwidth = calculate_waveform_halfwidth(mean_waveform,timestamps)
     waveform_PT_ratio = calculate_waveform_PT_ratio(mean_waveform)
     waveform_TP_time = calculate_waveform_TP_time(mean_waveform, timestamps)
+    waveform_positive_spiking = is_positive_spiking(mean_waveform)
     
     # slopes not possible for 12.5kHz sampling rate as insufficient points for linear regression
     # waveform_repolarization_slope = calculate_waveform_repolarization_slope(mean_waveform,timestamps)
     # waveform_recovery_slope = calculate_waveform_recovery_slope(mean_waveform, timestamps)
     
-    return waveform_duration, waveform_halfwidth, waveform_PT_ratio, waveform_TP_time
+    return waveform_duration, waveform_halfwidth, waveform_PT_ratio, waveform_TP_time, waveform_positive_spiking
 
 
 ### INTERSPIKE INTERVAL ###
