@@ -286,3 +286,14 @@ def get_synchrony_features(spike_times,
         fig.tight_layout()
     
     return max_peak_freq, freq_peaks, peak_bands, freq_magnitude
+
+
+def autocorrelation(spike_times, bin_size, max_lag):
+    bins = np.arange(0, np.max(spike_times) + bin_size, bin_size)
+    spike_counts = np.histogram(spike_times, bins=bins)[0]
+    autocorr = np.correlate(spike_counts, spike_counts, mode='full')[len(spike_counts) - 1:]
+    autocorr_lag = np.arange(0, len(autocorr)) * bin_size
+    autocorr = autocorr[autocorr_lag <= max_lag]
+    autocorr_lag = autocorr_lag[autocorr_lag <= max_lag]
+    return autocorr, autocorr_lag
+
