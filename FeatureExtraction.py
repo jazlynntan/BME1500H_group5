@@ -233,6 +233,17 @@ def get_burst_metrics(burst_dict, spike_times):
     
     return num_bursts, mean_surprise, burst_index, mean_burst_duration, var_burst_duration, mean_interburst_duration, var_interburst_duration
     
+def get_burst_index(spike_times):
+    """ alternative definition of burst index, not using Poisson Surprise method 
+        burst index = mean ISI / mode ISI
+        use median ISI as proxy for mode ISI due to multimodal distributions
+    """
+    
+    ISI = np.diff(spike_times)
+    burst_index = np.mean(ISI) / np.median(ISI)
+    
+    return burst_index
+    
 ### SYNCHRONY ###
 def get_synchrony_features(spike_times, 
                            time_bin_size = 0.01, 
@@ -323,3 +334,61 @@ def autocorrelation(spike_times, bin_size, max_lag):
     autocorr_lag = autocorr_lag[autocorr_lag <= max_lag]
     return autocorr, autocorr_lag
 
+def get_synchrony_features2(spike_times, 
+                           time_bin_size = 0.01, 
+                           max_lag_time = 0.5, 
+                           significance_level = 0.05, 
+                           to_plot = False):
+    
+    """ method from 'Burst and oscillation as disparate neuronal properties' Kaneoke & Vitek (1996) """
+
+    # autocorrelogram
+    autocorr, autocorr_lag = autocorrelation(spike_times, time_bin_size, max_lag_time)
+    
+    w = np.linspace(2*2*np.pi, 50*2*np.pi, 100)
+    pgram = signal.lombscargle(autocorr_lag, autocorr, w, normalize=True)
+    
+    # Calculate the threshold based on the significance level
+    threshold = np.percentile(pgram, (1 - significance_level) * 100)
+    
+    peaks, peak_props = signal.find_peaks(pgram, height=threshold)
+    
+    if peaks.size > 0:
+        freq_peaks = w[peaks] / (2*np.pi)
+        max_peak_freq = w[peaks[peak_props['peak_heights'].argmax()]] / (2* np.pi)
+        freq_magnitude = peak_props['peak_heights']
+
+        frequency_bands = {
+            'delta': (0.1, 4),
+            'theta': (4, 8),
+            'alpha': (8, 13),
+            'beta': (13, 30),
+            'gamma': (30, 50),
+        }
+
+        peak_bands = []
+        for band, (lower, upper) in frequency_bands.items():
+            peak_bands.extend([band for p in freq_peaks if lower <= p < upper])
+    
+    else:
+        freq_peaks = []
+        max_peak_freq = np.nan
+        peak_bands = []
+        freq_magnitude = []
+    
+    if to_plot == True:
+        fig,axes = plt.subplots(2,1)
+        axes[0].plot(autocorr_lag, autocorr)
+        axes[0].set_title('Autocorrelogram')
+        axes[0].set_xlabel('Time Lag (ms)')
+        axes[0].set_ylabel('Normalized \n Spike Counts')
+        
+        axes[1].plot(w/(2*np.pi), pgram)
+        axes[1].axhline(y=threshold, color='r', label='p = ' + str(significance_level))
+        axes[1].set_ylabel('Magnitude')
+        axes[1].set_xlabel('Frequency (Hz)')
+        
+        fig.legend()
+        fig.tight_layout()
+    
+    return max_peak_freq, freq_peaks, peak_bands, freq_magnitude
