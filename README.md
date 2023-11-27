@@ -6,7 +6,7 @@
 This repository contains code for spike sorting and training a classification model for neuronal cell-typing in the subthalamic nucleus and globus pallidus from single neuron recordings in Parkinson's Disease.
 
 1. Spike_sorting.ipynb to sort spikes and produce figures for manual curation
-2. Model_training.ipynb:
+2. Model_training.ipynb:\
   A. extract features\
   B. prepare dataset\
   C. train logistic regression, random forests, SVMs\
